@@ -1,0 +1,9 @@
+Overhead Line Configurations (Config.),Unnamed: 1,Unnamed: 2,Unnamed: 3,Unnamed: 4
+,,,,
+Config.,Phasing,Phase ,Neutral ,Spacing ID
+,,ACSR,ACSR,
+300,B A C N, 1/0, 1/0,500
+301,B A C N,#2  6/1,#2  6/1,500
+302,A N,#4  6/1,#4  6/1,510
+303,B N,#4  6/1,#4  6/1,510
+304,B N,#2  6/1,#2  6/1,510
