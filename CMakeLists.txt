@@ -47,6 +47,19 @@ set(SOURCES
         core/threading/thread_pool.hpp
         core/parsers/phase_config_parser.cpp
         core/parsers/phase_config_parser.hpp
+        core/parsers/transformer_parser.hpp
+        core/parsers/transformer_parser.cpp
+        core/models/load.hpp
+        core/parsers/load_parser.hpp
+        core/parsers/load_parser.cpp
+        core/models/distributed_load.hpp
+        core/parsers/distributed_load_parser.cpp
+        core/parsers/distributed_load_parser.hpp
+        core/parsers/regulator_parser.hpp
+        core/parsers/regulator_parser.cpp
+        core/models/capacitor.hpp
+        core/parsers/capacitor_parser.hpp
+        core/parsers/capacitor_parser.cpp
 )
 
 # 4. Create the actual executable program
