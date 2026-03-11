@@ -96,4 +96,7 @@ public:
 
         return result;
     }
+    const std::vector<T>& get_values() const { return values; }
+    const std::vector<int>& get_col_indices() const { return col_indices; }
+    const std::vector<int>& get_row_ptr() const { return row_ptr; }
 };

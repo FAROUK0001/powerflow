@@ -2,13 +2,12 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include <map>
 #include <complex>
 #include "core/models/branch.hpp"
 #include "core/models/phase_config.hpp"
-#include "core/models/transformer.hpp" // ADD THIS
+#include "core/models/transformer.hpp"
 #include "core/linalg/matrix_dense.hpp"
-#include "core/linalg/matrix_sparse_csr.hpp"
+#include "core/models/capacitor.hpp"
 
 using ComplexMatrix3x3 = MatrixDense<std::complex<double>>;
 
@@ -18,7 +17,8 @@ public:
     build_ybus_map(
         const std::vector<Branch>& branches,
         const std::unordered_map<std::string, PhaseConfig>& configs,
-        const std::unordered_map<std::string, Transformer>& transformers, // ADD THIS!
+        const std::unordered_map<std::string, Capacitor>& capacitors,
+        const std::unordered_map<std::string, Transformer>& transformers,
         const std::unordered_map<std::string, int>& node_to_index
     );
 };
