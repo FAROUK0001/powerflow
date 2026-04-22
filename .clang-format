@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+Standard: Cpp23
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AlignConsecutiveAssignments: false
+PointerAlignment: Left
+SortIncludes: true

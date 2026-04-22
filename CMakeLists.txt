@@ -1,17 +1,86 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(PowerFlowSolver)
+project(PowerFlowSolver LANGUAGES CXX)
 
 # --------------------------------------------------
-# C++ Standard
+# Build options
 # --------------------------------------------------
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# --------------------------------------------------
-# Include directories
-# --------------------------------------------------
-include_directories(.)
+option(POWERFLOW_BUILD_TESTS "Build test executables" ON)
+option(POWERFLOW_ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(POWERFLOW_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(POWERFLOW_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
+option(POWERFLOW_ENABLE_LTO "Enable link-time optimization" OFF)
+
+if(POWERFLOW_ENABLE_TSAN AND (POWERFLOW_ENABLE_ASAN OR POWERFLOW_ENABLE_UBSAN))
+    message(FATAL_ERROR "POWERFLOW_ENABLE_TSAN cannot be combined with POWERFLOW_ENABLE_ASAN or POWERFLOW_ENABLE_UBSAN")
+endif()
+
+if(POWERFLOW_ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT POWERFLOW_IPO_SUPPORTED OUTPUT POWERFLOW_IPO_OUTPUT)
+    if(NOT POWERFLOW_IPO_SUPPORTED)
+        message(WARNING "POWERFLOW_ENABLE_LTO requested but IPO/LTO is not supported: ${POWERFLOW_IPO_OUTPUT}")
+    endif()
+endif()
+
+function(powerflow_apply_common_settings target_name)
+    target_compile_features(${target_name} PRIVATE cxx_std_23)
+    target_include_directories(${target_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /W4 /permissive-)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+
+    set(powerflow_sanitize_compile_options "")
+    set(powerflow_sanitize_link_options "")
+
+    if(POWERFLOW_ENABLE_ASAN)
+        if(MSVC)
+            list(APPEND powerflow_sanitize_compile_options /fsanitize=address)
+            list(APPEND powerflow_sanitize_link_options /fsanitize=address)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            list(APPEND powerflow_sanitize_compile_options -fsanitize=address -fno-omit-frame-pointer)
+            list(APPEND powerflow_sanitize_link_options -fsanitize=address)
+        endif()
+    endif()
+
+    if(POWERFLOW_ENABLE_UBSAN)
+        if(MSVC)
+            message(WARNING "POWERFLOW_ENABLE_UBSAN is not supported with MSVC and will be ignored")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            list(APPEND powerflow_sanitize_compile_options -fsanitize=undefined -fno-omit-frame-pointer)
+            list(APPEND powerflow_sanitize_link_options -fsanitize=undefined)
+        endif()
+    endif()
+
+    if(POWERFLOW_ENABLE_TSAN)
+        if(MSVC)
+            message(WARNING "POWERFLOW_ENABLE_TSAN is not supported with MSVC and will be ignored")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+            list(APPEND powerflow_sanitize_compile_options -fsanitize=thread)
+            list(APPEND powerflow_sanitize_link_options -fsanitize=thread)
+        endif()
+    endif()
+
+    if(powerflow_sanitize_compile_options)
+        target_compile_options(${target_name} PRIVATE ${powerflow_sanitize_compile_options})
+    endif()
+
+    if(powerflow_sanitize_link_options)
+        target_link_options(${target_name} PRIVATE ${powerflow_sanitize_link_options})
+    endif()
+
+    if(POWERFLOW_ENABLE_LTO AND POWERFLOW_IPO_SUPPORTED)
+        set_target_properties(${target_name} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+endfunction()
 
 # --------------------------------------------------
 # Source files
@@ -121,12 +190,35 @@ add_executable(
         ${SOLVER}
         ${THREADING}
 )
+powerflow_apply_common_settings(PowerFlowSolver)
 
 # --------------------------------------------------
 # Tests
 # --------------------------------------------------
 
-add_executable(TestSparse tests/test_sparse_matrix.cpp)
-add_executable(TestComplexSparse tests/test_sparse_complex.cpp)
-add_executable(TestRealGrid tests/test_real_grid.cpp)
-add_executable(YBusDumper tests/ybus_dumper.cpp core/models/ybus_builder.cpp core/parsers/line_parser.cpp core/parsers/phase_config_parser.cpp core/parsers/capacitor_parser.cpp core/parsers/transformer_parser.cpp)
+if(POWERFLOW_BUILD_TESTS)
+    enable_testing()
+
+    add_executable(TestSparse tests/test_sparse_matrix.cpp)
+    powerflow_apply_common_settings(TestSparse)
+    add_test(NAME TestSparse COMMAND TestSparse)
+
+    add_executable(TestComplexSparse tests/test_sparse_complex.cpp)
+    powerflow_apply_common_settings(TestComplexSparse)
+    add_test(NAME TestComplexSparse COMMAND TestComplexSparse)
+
+    add_executable(TestRealGrid tests/test_real_grid.cpp)
+    powerflow_apply_common_settings(TestRealGrid)
+    add_test(NAME TestRealGrid COMMAND TestRealGrid)
+
+    add_executable(
+            YBusDumper
+            tests/ybus_dumper.cpp
+            core/models/ybus_builder.cpp
+            core/parsers/line_parser.cpp
+            core/parsers/phase_config_parser.cpp
+            core/parsers/capacitor_parser.cpp
+            core/parsers/transformer_parser.cpp
+    )
+    powerflow_apply_common_settings(YBusDumper)
+endif()
