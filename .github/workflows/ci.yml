@@ -34,3 +34,27 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+  sanitizers:
+    permissions:
+      contents: read
+    name: Sanitizers (ASAN+UBSAN)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build-sanitizers
+          -DCMAKE_BUILD_TYPE=Debug
+          -DPOWERFLOW_BUILD_TESTS=ON
+          -DPOWERFLOW_ENABLE_ASAN=ON
+          -DPOWERFLOW_ENABLE_UBSAN=ON
+
+      - name: Build
+        run: cmake --build build-sanitizers --parallel
+
+      - name: Test
+        run: ctest --test-dir build-sanitizers --output-on-failure

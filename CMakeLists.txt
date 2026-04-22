@@ -48,6 +48,8 @@ function(powerflow_apply_common_settings target_name)
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             list(APPEND powerflow_sanitize_compile_options -fsanitize=address -fno-omit-frame-pointer)
             list(APPEND powerflow_sanitize_link_options -fsanitize=address)
+        else()
+            message(WARNING "POWERFLOW_ENABLE_ASAN is not supported for compiler '${CMAKE_CXX_COMPILER_ID}' and will be ignored")
         endif()
     endif()
 
@@ -57,6 +59,8 @@ function(powerflow_apply_common_settings target_name)
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             list(APPEND powerflow_sanitize_compile_options -fsanitize=undefined -fno-omit-frame-pointer)
             list(APPEND powerflow_sanitize_link_options -fsanitize=undefined)
+        else()
+            message(WARNING "POWERFLOW_ENABLE_UBSAN is not supported for compiler '${CMAKE_CXX_COMPILER_ID}' and will be ignored")
         endif()
     endif()
 
@@ -66,6 +70,8 @@ function(powerflow_apply_common_settings target_name)
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
             list(APPEND powerflow_sanitize_compile_options -fsanitize=thread)
             list(APPEND powerflow_sanitize_link_options -fsanitize=thread)
+        else()
+            message(WARNING "POWERFLOW_ENABLE_TSAN is not supported for compiler '${CMAKE_CXX_COMPILER_ID}' and will be ignored")
         endif()
     endif()
 
@@ -198,18 +204,25 @@ powerflow_apply_common_settings(PowerFlowSolver)
 
 if(POWERFLOW_BUILD_TESTS)
     enable_testing()
+    include(FetchContent)
+    FetchContent_Declare(
+            Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.7.1
+    )
+    FetchContent_MakeAvailable(Catch2)
 
-    add_executable(TestSparse tests/test_sparse_matrix.cpp)
-    powerflow_apply_common_settings(TestSparse)
-    add_test(NAME TestSparse COMMAND TestSparse)
+    add_executable(
+            PowerFlowUnitTests
+            tests/test_sparse_matrix.cpp
+            tests/test_sparse_complex.cpp
+            tests/test_real_grid.cpp
+    )
+    target_link_libraries(PowerFlowUnitTests PRIVATE Catch2::Catch2WithMain)
+    powerflow_apply_common_settings(PowerFlowUnitTests)
 
-    add_executable(TestComplexSparse tests/test_sparse_complex.cpp)
-    powerflow_apply_common_settings(TestComplexSparse)
-    add_test(NAME TestComplexSparse COMMAND TestComplexSparse)
-
-    add_executable(TestRealGrid tests/test_real_grid.cpp)
-    powerflow_apply_common_settings(TestRealGrid)
-    add_test(NAME TestRealGrid COMMAND TestRealGrid)
+    include(Catch)
+    catch_discover_tests(PowerFlowUnitTests)
 
     add_executable(
             YBusDumper

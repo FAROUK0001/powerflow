@@ -28,18 +28,22 @@ Run the main solver executable:
 ./build/PowerFlowSolver
 ```
 
-Run test executables directly:
+Run the unit test executable directly:
 
 ```bash
-./build/TestSparse
-./build/TestComplexSparse
-./build/TestRealGrid
+./build/PowerFlowUnitTests
 ```
 
 Or via CTest:
 
 ```bash
 ctest --test-dir build --output-on-failure
+```
+
+Disable tests when needed:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPOWERFLOW_BUILD_TESTS=OFF
 ```
 
 ## Development notes
@@ -60,6 +64,27 @@ Example development configure command:
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DPOWERFLOW_BUILD_TESTS=ON -DPOWERFLOW_ENABLE_ASAN=ON
+```
+
+Sanitizer examples:
+
+```bash
+# AddressSanitizer + UndefinedBehaviorSanitizer (Linux, GCC/Clang)
+cmake -S . -B build-asan-ubsan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DPOWERFLOW_BUILD_TESTS=ON \
+  -DPOWERFLOW_ENABLE_ASAN=ON \
+  -DPOWERFLOW_ENABLE_UBSAN=ON
+cmake --build build-asan-ubsan --parallel
+ctest --test-dir build-asan-ubsan --output-on-failure
+
+# ThreadSanitizer (mutually exclusive with ASAN/UBSAN)
+cmake -S . -B build-tsan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DPOWERFLOW_BUILD_TESTS=ON \
+  -DPOWERFLOW_ENABLE_TSAN=ON
+cmake --build build-tsan --parallel
+ctest --test-dir build-tsan --output-on-failure
 ```
 
 CMake compile command export is enabled by default in this project for improved tooling integration.

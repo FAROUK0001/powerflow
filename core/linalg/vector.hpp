@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <stdexcept>
+#include <cstddef>
 
 template <typename T>
 class Vector {
@@ -27,7 +28,7 @@ public:
     const T& operator[](int index) const {
         return data[index];
     }
-    void set(int index,T value)
+    void set(int index, const T& value)
     {
         data[index] = value;
     }
@@ -38,7 +39,7 @@ public:
         Vector<T> result(data.size());
 
         // 2. Your exact loop
-        for (int i = 0; i < data.size(); i++) {
+        for (std::size_t i = 0; i < data.size(); ++i) {
             // 3. Now the [] brackets work perfectly!
             result[i] = data[i] * scalar;
         }
