@@ -10,6 +10,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
     name: ${{ matrix.build_type }}
     runs-on: ubuntu-latest
     strategy:

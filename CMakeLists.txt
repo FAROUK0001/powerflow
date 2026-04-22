@@ -17,7 +17,7 @@ option(POWERFLOW_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 option(POWERFLOW_ENABLE_LTO "Enable link-time optimization" OFF)
 
 if(POWERFLOW_ENABLE_TSAN AND (POWERFLOW_ENABLE_ASAN OR POWERFLOW_ENABLE_UBSAN))
-    message(FATAL_ERROR "POWERFLOW_ENABLE_TSAN cannot be combined with POWERFLOW_ENABLE_ASAN or POWERFLOW_ENABLE_UBSAN")
+    message(FATAL_ERROR "ThreadSanitizer cannot be combined with AddressSanitizer or UndefinedBehaviorSanitizer due to runtime conflicts")
 endif()
 
 if(POWERFLOW_ENABLE_LTO)
