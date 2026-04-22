@@ -1,4 +1,0 @@
-CSR sparse matrix multiplies a real vector 1 0.0115532
-CSR sparse matrix multiplies a complex vector 1 0.0107978
-Two-bus current injection matches expected values 1 0.011998
----
