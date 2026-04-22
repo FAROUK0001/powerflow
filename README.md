@@ -55,6 +55,7 @@ Use standard CMake build types such as `Debug` and `Release`.
 ### Project CMake options
 
 - `POWERFLOW_BUILD_TESTS` (default: `ON`) — build test executables and register CTest tests.
+- `POWERFLOW_BUILD_BENCHMARKS` (default: `OFF`) — build the lightweight local performance benchmark executable.
 - `POWERFLOW_ENABLE_ASAN` (default: `OFF`) — enable AddressSanitizer.
 - `POWERFLOW_ENABLE_UBSAN` (default: `OFF`) — enable UndefinedBehaviorSanitizer.
 - `POWERFLOW_ENABLE_TSAN` (default: `OFF`) — enable ThreadSanitizer.
@@ -88,3 +89,42 @@ ctest --test-dir build-tsan --output-on-failure
 ```
 
 CMake compile command export is enabled by default in this project for improved tooling integration.
+
+## Performance workflow (local)
+
+Use `Release` (or `RelWithDebInfo`) for performance measurements. Avoid `Debug` for timing comparisons.
+
+### Build benchmark executable
+
+```bash
+cmake -S . -B build-perf \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DPOWERFLOW_BUILD_TESTS=OFF \
+  -DPOWERFLOW_BUILD_BENCHMARKS=ON \
+  -DPOWERFLOW_ENABLE_LTO=ON
+cmake --build build-perf --parallel
+```
+
+If IPO/LTO is unsupported by your compiler/toolchain, CMake prints a warning and continues without LTO.
+
+### Run benchmark
+
+```bash
+./build-perf/PowerFlowPerfBench 1 5 feeder34/data
+```
+
+Arguments:
+- arg1: warm-up run count (default `1`)
+- arg2: measured run count (default `3`)
+- arg3: dataset root path (default `../feeder34/data`)
+
+Benchmark output reports per-run and average timings for:
+- `ybus_ms` (Y-bus assembly + CSR build)
+- `solve_ms` (Newton-Raphson solve path)
+
+### Fair-comparison caveats
+
+- Use the same machine and compiler for before/after runs.
+- Use the exact same input dataset path.
+- Keep build flags identical between runs (including LTO setting).
+- Warm up first, then collect repeated runs and compare averages (`>= 3` runs).
