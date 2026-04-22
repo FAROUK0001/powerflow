@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <stdexcept>
-#include <cstddef>
 #include "core/linalg/vector.hpp"
 #include <iostream>
 
@@ -48,7 +47,8 @@ public:
             throw std::invalid_argument("Matrix sizes must match for addition");
         }
         MatrixDense<T> result(num_rows, num_cols);
-        for (std::size_t i = 0; i < data.size(); ++i) {
+        const int total_values = static_cast<int>(data.size());
+        for (int i = 0; i < total_values; ++i) {
             result.data[i] = data[i] + other.data[i];
         }
         return result;
