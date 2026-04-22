@@ -1,5 +1,0 @@
-if(EXISTS "/home/runner/work/powerflow/powerflow/build-baseline-debug/PowerFlowUnitTests-b12d07c_tests.cmake")
-  include("/home/runner/work/powerflow/powerflow/build-baseline-debug/PowerFlowUnitTests-b12d07c_tests.cmake")
-else()
-  add_test(PowerFlowUnitTests_NOT_BUILT-b12d07c PowerFlowUnitTests_NOT_BUILT-b12d07c)
-endif()
