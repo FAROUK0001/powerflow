@@ -1,0 +1,63 @@
+Start testing: Apr 22 14:18 UTC
+----------------------------------------------------------
+1/3 Testing: CSR sparse matrix multiplies a real vector
+1/3 Test: CSR sparse matrix multiplies a real vector
+Command: "/home/runner/work/powerflow/powerflow/build-baseline-release/PowerFlowUnitTests" "CSR sparse matrix multiplies a real vector"
+Directory: /home/runner/work/powerflow/powerflow/build-baseline-release
+"CSR sparse matrix multiplies a real vector" start time: Apr 22 14:18 UTC
+Output:
+----------------------------------------------------------
+Filters: "CSR sparse matrix multiplies a real vector"
+Randomness seeded to: 327065918
+===============================================================================
+All tests passed (3 assertions in 1 test case)
+
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"CSR sparse matrix multiplies a real vector" end time: Apr 22 14:18 UTC
+"CSR sparse matrix multiplies a real vector" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/3 Testing: CSR sparse matrix multiplies a complex vector
+2/3 Test: CSR sparse matrix multiplies a complex vector
+Command: "/home/runner/work/powerflow/powerflow/build-baseline-release/PowerFlowUnitTests" "CSR sparse matrix multiplies a complex vector"
+Directory: /home/runner/work/powerflow/powerflow/build-baseline-release
+"CSR sparse matrix multiplies a complex vector" start time: Apr 22 14:18 UTC
+Output:
+----------------------------------------------------------
+Filters: "CSR sparse matrix multiplies a complex vector"
+Randomness seeded to: 3864110154
+===============================================================================
+All tests passed (4 assertions in 1 test case)
+
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"CSR sparse matrix multiplies a complex vector" end time: Apr 22 14:18 UTC
+"CSR sparse matrix multiplies a complex vector" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: Two-bus current injection matches expected values
+3/3 Test: Two-bus current injection matches expected values
+Command: "/home/runner/work/powerflow/powerflow/build-baseline-release/PowerFlowUnitTests" "Two-bus current injection matches expected values"
+Directory: /home/runner/work/powerflow/powerflow/build-baseline-release
+"Two-bus current injection matches expected values" start time: Apr 22 14:18 UTC
+Output:
+----------------------------------------------------------
+Filters: "Two-bus current injection matches expected values"
+Randomness seeded to: 2187676315
+===============================================================================
+All tests passed (4 assertions in 1 test case)
+
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"Two-bus current injection matches expected values" end time: Apr 22 14:18 UTC
+"Two-bus current injection matches expected values" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Apr 22 14:18 UTC

@@ -1,0 +1,14 @@
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/PowerFlowSolver.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/PowerFlowUnitTests.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/YBusDumper.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/test.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/edit_cache.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/CMakeFiles/rebuild_cache.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/CMakeFiles/test.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/CMakeFiles/edit_cache.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/CMakeFiles/rebuild_cache.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/src/CMakeFiles/Catch2.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/src/CMakeFiles/Catch2WithMain.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/src/CMakeFiles/test.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/src/CMakeFiles/edit_cache.dir
+/home/runner/work/powerflow/powerflow/build-baseline-debug/_deps/catch2-build/src/CMakeFiles/rebuild_cache.dir

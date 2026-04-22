@@ -1,0 +1,7 @@
+add_test( [==[CSR sparse matrix multiplies a real vector]==] /home/runner/work/powerflow/powerflow/build-baseline-debug/PowerFlowUnitTests [==[CSR sparse matrix multiplies a real vector]==]  )
+set_tests_properties( [==[CSR sparse matrix multiplies a real vector]==] PROPERTIES WORKING_DIRECTORY /home/runner/work/powerflow/powerflow/build-baseline-debug SKIP_RETURN_CODE 4)
+add_test( [==[CSR sparse matrix multiplies a complex vector]==] /home/runner/work/powerflow/powerflow/build-baseline-debug/PowerFlowUnitTests [==[CSR sparse matrix multiplies a complex vector]==]  )
+set_tests_properties( [==[CSR sparse matrix multiplies a complex vector]==] PROPERTIES WORKING_DIRECTORY /home/runner/work/powerflow/powerflow/build-baseline-debug SKIP_RETURN_CODE 4)
+add_test( [==[Two-bus current injection matches expected values]==] /home/runner/work/powerflow/powerflow/build-baseline-debug/PowerFlowUnitTests [==[Two-bus current injection matches expected values]==]  )
+set_tests_properties( [==[Two-bus current injection matches expected values]==] PROPERTIES WORKING_DIRECTORY /home/runner/work/powerflow/powerflow/build-baseline-debug SKIP_RETURN_CODE 4)
+set( PowerFlowUnitTests_TESTS [==[CSR sparse matrix multiplies a real vector]==] [==[CSR sparse matrix multiplies a complex vector]==] [==[Two-bus current injection matches expected values]==])
