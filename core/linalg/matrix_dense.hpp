@@ -25,7 +25,7 @@ public:
 
     // Access elements using A(row, col)
     T& operator()(int row, int col) {
-        if (row >= num_rows || col >= num_cols) {
+        if (row < 0 || col < 0 || row >= num_rows || col >= num_cols) {
             throw std::out_of_range("Matrix Index out of bounds");
         }
         return data[row * num_cols + col];
@@ -33,7 +33,7 @@ public:
 
     // Read elements using A(row, col) (Const version)
     const T& operator()(int row, int col) const {
-        if (row >= num_rows || col >= num_cols) {
+        if (row < 0 || col < 0 || row >= num_rows || col >= num_cols) {
             throw std::out_of_range("Matrix Index out of bounds");
         }
         return data[row * num_cols + col];
@@ -47,7 +47,8 @@ public:
             throw std::invalid_argument("Matrix sizes must match for addition");
         }
         MatrixDense<T> result(num_rows, num_cols);
-        for (int i = 0; i < data.size(); i++) {
+        const int total_values = static_cast<int>(data.size());
+        for (int i = 0; i < total_values; ++i) {
             result.data[i] = data[i] + other.data[i];
         }
         return result;

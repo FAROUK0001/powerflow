@@ -27,7 +27,7 @@ public:
     const T& operator[](int index) const {
         return data[index];
     }
-    void set(int index,T value)
+    void set(int index, const T& value)
     {
         data[index] = value;
     }
@@ -38,7 +38,8 @@ public:
         Vector<T> result(data.size());
 
         // 2. Your exact loop
-        for (int i = 0; i < data.size(); i++) {
+        const int n = this->size();
+        for (int i = 0; i < n; ++i) {
             // 3. Now the [] brackets work perfectly!
             result[i] = data[i] * scalar;
         }
