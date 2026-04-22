@@ -70,11 +70,11 @@ int main(int argc, char** argv) {
         node_to_index.reserve(branches.size() * 2);
         int current_index = 0;
         for (const auto& branch : branches) {
-            if (!node_to_index.contains(branch.node_a)) {
-                node_to_index[branch.node_a] = current_index++;
+            if (node_to_index.try_emplace(branch.node_a, current_index).second) {
+                ++current_index;
             }
-            if (!node_to_index.contains(branch.node_b)) {
-                node_to_index[branch.node_b] = current_index++;
+            if (node_to_index.try_emplace(branch.node_b, current_index).second) {
+                ++current_index;
             }
         }
 
