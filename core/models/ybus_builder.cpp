@@ -11,23 +11,26 @@ YBusBuilder::build_ybus_map(
 )
 {
     std::unordered_map<int, std::unordered_map<int, ComplexMatrix3x3>> ybus;
+    ybus.reserve(node_to_index.size());
 
     for (const auto& branch : branches) {
-        int i = node_to_index.at(branch.node_a);
-        int j = node_to_index.at(branch.node_b);
+        const int i = node_to_index.at(branch.node_a);
+        const int j = node_to_index.at(branch.node_b);
 
-        // Pre-initialize empty 3x3 matrices
-        if (!ybus[i].contains(i)) ybus[i][i] = ComplexMatrix3x3(3, 3);
-        if (!ybus[j].contains(j)) ybus[j][j] = ComplexMatrix3x3(3, 3);
-        if (!ybus[i].contains(j)) ybus[i][j] = ComplexMatrix3x3(3, 3);
-        if (!ybus[j].contains(i)) ybus[j][i] = ComplexMatrix3x3(3, 3);
+        auto& row_i = ybus[i];
+        auto& row_j = ybus[j];
+
+        auto yii_it = row_i.try_emplace(i, ComplexMatrix3x3(3, 3)).first;
+        auto yjj_it = row_j.try_emplace(j, ComplexMatrix3x3(3, 3)).first;
+        auto yij_it = row_i.try_emplace(j, ComplexMatrix3x3(3, 3)).first;
+        auto yji_it = row_j.try_emplace(i, ComplexMatrix3x3(3, 3)).first;
 
         // ==============================================================
         // SCENARIO 1: IT IS A NORMAL POWER LINE
         // ==============================================================
-        if (configs.contains(branch.config_id)) {
-            ComplexMatrix3x3 Z_line = configs.at(branch.config_id).Z_matrix;
-            double length_in_miles = branch.length_ft / 5280.0;
+        if (const auto config_it = configs.find(branch.config_id); config_it != configs.end()) {
+            ComplexMatrix3x3 Z_line = config_it->second.Z_matrix;
+            const double length_in_miles = branch.length_ft / 5280.0;
 
             for(int r = 0; r < 3; r++) {
                 for(int c = 0; c < 3; c++) {
@@ -43,16 +46,16 @@ YBusBuilder::build_ybus_map(
                 }
             }
 
-            ybus[i][i] = ybus[i][i] + Y_line;
-            ybus[j][j] = ybus[j][j] + Y_line;
-            ybus[i][j] = ybus[i][j] + neg_Y_line;
-            ybus[j][i] = ybus[j][i] + neg_Y_line;
+            yii_it->second = yii_it->second + Y_line;
+            yjj_it->second = yjj_it->second + Y_line;
+            yij_it->second = yij_it->second + neg_Y_line;
+            yji_it->second = yji_it->second + neg_Y_line;
         }
         // ==============================================================
         // SCENARIO 2: IT IS A TRANSFORMER
         // ==============================================================
-        else if (transformers.contains(branch.config_id)) {
-            const Transformer& tx = transformers.at(branch.config_id);
+        else if (const auto tx_it = transformers.find(branch.config_id); tx_it != transformers.end()) {
+            const Transformer& tx = tx_it->second;
 
             // 1. Calculate Base Ohms on the High Side
             double z_base = (tx.kv_high * tx.kv_high * 1000.0) / tx.kva;
@@ -76,10 +79,10 @@ YBusBuilder::build_ybus_map(
                 Y21(p, p) = -y_H * a;
             }
 
-            ybus[i][i] = ybus[i][i] + Y11;
-            ybus[j][j] = ybus[j][j] + Y22;
-            ybus[i][j] = ybus[i][j] + Y12;
-            ybus[j][i] = ybus[j][i] + Y21;
+            yii_it->second = yii_it->second + Y11;
+            yjj_it->second = yjj_it->second + Y22;
+            yij_it->second = yij_it->second + Y12;
+            yji_it->second = yji_it->second + Y21;
         }
         else {
             std::cerr << "Warning: Config " << branch.config_id << " missing!\n";
@@ -90,11 +93,12 @@ YBusBuilder::build_ybus_map(
     // 5. INJECT CAPACITORS (Shunt Admittance)
     // ==============================================================
     for (const auto& cap_pair : capacitors) {
-        std::string node_name = cap_pair.first;
+        const std::string& node_name = cap_pair.first;
         const Capacitor& cap = cap_pair.second;
 
-        if (!node_to_index.contains(node_name)) continue;
-        int i = node_to_index.at(node_name);
+        const auto node_it = node_to_index.find(node_name);
+        if (node_it == node_to_index.end()) continue;
+        const int i = node_it->second;
 
         ComplexMatrix3x3 Y_cap(3, 3);
         double base_kV = 24.9;
@@ -107,8 +111,9 @@ YBusBuilder::build_ybus_map(
             }
         }
 
-        if (!ybus[i].contains(i)) ybus[i][i] = ComplexMatrix3x3(3, 3);
-        ybus[i][i] = ybus[i][i] + Y_cap;
+        auto& row_i = ybus[i];
+        auto yii_it = row_i.try_emplace(i, ComplexMatrix3x3(3, 3)).first;
+        yii_it->second = yii_it->second + Y_cap;
     }
 
     return ybus;
