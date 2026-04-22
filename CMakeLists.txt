@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(POWERFLOW_BUILD_TESTS "Build test executables" ON)
+option(POWERFLOW_BUILD_BENCHMARKS "Build performance benchmark executable" OFF)
 option(POWERFLOW_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(POWERFLOW_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(POWERFLOW_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
@@ -197,6 +198,27 @@ add_executable(
         ${THREADING}
 )
 powerflow_apply_common_settings(PowerFlowSolver)
+
+# --------------------------------------------------
+# Benchmarks
+# --------------------------------------------------
+
+if(POWERFLOW_BUILD_BENCHMARKS)
+    add_executable(
+            PowerFlowPerfBench
+            tests/perf_benchmark.cpp
+            core/models/ybus_builder.cpp
+            core/parsers/line_parser.cpp
+            core/parsers/phase_config_parser.cpp
+            core/parsers/load_parser.cpp
+            core/parsers/distributed_load_parser.cpp
+            core/parsers/capacitor_parser.cpp
+            core/parsers/transformer_parser.cpp
+            core/solver/newton_raphson.cpp
+            core/solver/jacobian_builder.cpp
+    )
+    powerflow_apply_common_settings(PowerFlowPerfBench)
+endif()
 
 # --------------------------------------------------
 # Tests
