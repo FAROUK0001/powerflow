@@ -1,0 +1,11 @@
+# Build artifacts
+/build/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/compile_commands.json
+/Testing/
+
+# IDE/editor metadata
+/.idea/
+/.vscode/
