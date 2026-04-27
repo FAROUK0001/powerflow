@@ -26,7 +26,9 @@ std::vector<Branch> LineParser::parse(const std::string& filepath) {
             if (!b.config_id.empty() && b.config_id.back() == '\r') b.config_id.pop_back();
 
             branches.push_back(b);
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            std::cerr << "line_parser: skipping malformed line [" << line << "]: " << e.what() << '\n';
+        }
     }
     return branches;
 }
