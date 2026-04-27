@@ -92,7 +92,8 @@ int main(int argc, char** argv) {
         int csr_nnz_checksum = 0;
 
         auto run_ybus_once = [&]() {
-            auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index);
+            const double base_kv = 24.9; // IEEE 34-bus nominal line-to-line voltage (kV)
+            auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index, base_kv);
             MatrixSparseCSR<ComplexMatrix3x3> final_ybus(num_nodes, num_nodes);
             for (const auto& row_pair : ybus_map) {
                 for (const auto& col_pair : row_pair.second) {

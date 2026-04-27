@@ -7,7 +7,8 @@ YBusBuilder::build_ybus_map(
     const std::unordered_map<std::string, PhaseConfig>& configs,
     const std::unordered_map<std::string, Capacitor>& capacitors,
     const std::unordered_map<std::string, Transformer>& transformers,
-    const std::unordered_map<std::string, int>& node_to_index
+    const std::unordered_map<std::string, int>& node_to_index,
+    double base_kv
 )
 {
     std::unordered_map<int, std::unordered_map<int, ComplexMatrix3x3>> ybus;
@@ -29,25 +30,35 @@ YBusBuilder::build_ybus_map(
         // SCENARIO 1: IT IS A NORMAL POWER LINE
         // ==============================================================
         if (const auto config_it = configs.find(branch.config_id); config_it != configs.end()) {
-            ComplexMatrix3x3 Z_line = config_it->second.Z_matrix;
             const double length_in_miles = branch.length_ft / 5280.0;
 
-            for(int r = 0; r < 3; r++) {
-                for(int c = 0; c < 3; c++) {
-                    Z_line(r,c) = Z_line(r,c) * length_in_miles;
+            // Scale Z by line length
+            ComplexMatrix3x3 Z_line = config_it->second.Z_matrix;
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 3; c++) {
+                    Z_line(r, c) = Z_line(r, c) * length_in_miles;
                 }
             }
-
             ComplexMatrix3x3 Y_line = Z_line.inverse();
+
             ComplexMatrix3x3 neg_Y_line(3, 3);
-            for(int r=0; r<3; r++) {
-                for(int c=0; c<3; c++) {
-                    neg_Y_line(r,c) = Y_line(r,c) * std::complex<double>(-1, 0);
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 3; c++) {
+                    neg_Y_line(r, c) = Y_line(r, c) * std::complex<double>(-1.0, 0.0);
                 }
             }
 
-            yii_it->second = yii_it->second + Y_line;
-            yjj_it->second = yjj_it->second + Y_line;
+            // Half of the line-charging shunt admittance applied at each end.
+            // B_matrix entries are stored as purely imaginary (0 + jB) in S/mile.
+            ComplexMatrix3x3 Y_shunt_half(3, 3);
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 3; c++) {
+                    Y_shunt_half(r, c) = config_it->second.B_matrix(r, c) * length_in_miles * 0.5;
+                }
+            }
+
+            yii_it->second = yii_it->second + Y_line + Y_shunt_half;
+            yjj_it->second = yjj_it->second + Y_line + Y_shunt_half;
             yij_it->second = yij_it->second + neg_Y_line;
             yji_it->second = yji_it->second + neg_Y_line;
         }
@@ -57,21 +68,19 @@ YBusBuilder::build_ybus_map(
         else if (const auto tx_it = transformers.find(branch.config_id); tx_it != transformers.end()) {
             const Transformer& tx = tx_it->second;
 
-            // 1. Calculate Base Ohms on the High Side
-            double z_base = (tx.kv_high * tx.kv_high * 1000.0) / tx.kva;
+            // Base impedance on the high-voltage side (Ohms)
+            const double z_base = (tx.kv_high * tx.kv_high * 1000.0) / tx.kva;
 
-            // 2. Convert % Impedance to Actual Ohms
-            std::complex<double> z_actual(
+            // Convert percentage impedance to actual Ohms
+            const std::complex<double> z_actual(
                 (tx.r_percent / 100.0) * z_base,
                 (tx.x_percent / 100.0) * z_base
             );
 
-            // 3. Convert Actual Ohms to Admittance
-            std::complex<double> y_H = 1.0 / z_actual;
-            double a = tx.kv_high / tx.kv_low;
+            const std::complex<double> y_H = 1.0 / z_actual;
+            const double a = tx.kv_high / tx.kv_low; // turns ratio
 
-            ComplexMatrix3x3 Y11(3,3), Y22(3,3), Y12(3,3), Y21(3,3);
-
+            ComplexMatrix3x3 Y11(3, 3), Y22(3, 3), Y12(3, 3), Y21(3, 3);
             for (int p = 0; p < 3; p++) {
                 Y11(p, p) = y_H;
                 Y22(p, p) = y_H * (a * a);
@@ -85,36 +94,38 @@ YBusBuilder::build_ybus_map(
             yji_it->second = yji_it->second + Y21;
         }
         else {
-            std::cerr << "Warning: Config " << branch.config_id << " missing!\n";
+            std::cerr << "Warning: Config '" << branch.config_id
+                      << "' not found in line configs or transformers.\n";
         }
     }
 
     // ==============================================================
-    // 5. INJECT CAPACITORS (Shunt Admittance)
+    // INJECT CAPACITORS (Shunt Admittance)
     // ==============================================================
+    // Convert kVAr to Siemens: B = Q_kvar / (V_kV^2 * 1000)
+    const double z_base_cap = base_kv * base_kv / 1000.0; // kV² / MVAbase (in kΩ units → correct for kVAr)
+
     for (const auto& cap_pair : capacitors) {
         const std::string& node_name = cap_pair.first;
         const Capacitor& cap = cap_pair.second;
 
         const auto node_it = node_to_index.find(node_name);
         if (node_it == node_to_index.end()) continue;
-        const int i = node_it->second;
+        const int idx = node_it->second;
 
         ComplexMatrix3x3 Y_cap(3, 3);
-        double base_kV = 24.9;
-        double z_base = (base_kV * base_kV) / 1000.0;
-
         for (int phase = 0; phase < 3; phase++) {
-            if (cap.kvar[phase] > 0) {
-                double b_siemens = (cap.kvar[phase] / 1000.0) / z_base;
+            if (cap.kvar[phase] > 0.0) {
+                const double b_siemens = (cap.kvar[phase] / 1000.0) / z_base_cap;
                 Y_cap(phase, phase) = std::complex<double>(0.0, b_siemens);
             }
         }
 
-        auto& row_i = ybus[i];
-        auto yii_it = row_i.try_emplace(i, ComplexMatrix3x3(3, 3)).first;
+        auto& row_i = ybus[idx];
+        auto yii_it = row_i.try_emplace(idx, ComplexMatrix3x3(3, 3)).first;
         yii_it->second = yii_it->second + Y_cap;
     }
 
     return ybus;
 }
+

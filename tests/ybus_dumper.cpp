@@ -48,7 +48,8 @@ int main() {
         int num_nodes = node_to_index.size();
 
         // 3. Build the Map-Based Y-Bus
-        auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index);
+        const double base_kv = 24.9; // IEEE 34-bus nominal line-to-line voltage (kV)
+        auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index, base_kv);
 
         // 4. PRINT EVERY SINGLE SLOT TO CONSOLE
         std::cout << "\n====================================================\n";
