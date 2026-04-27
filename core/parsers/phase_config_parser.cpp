@@ -42,7 +42,7 @@ std::unordered_map<std::string, PhaseConfig> PhaseConfigParser::parse(const std:
                 config.B_matrix(row, col) = std::complex<double>(0.0, b);
             }
         } catch (const std::exception& e) {
-            std::cerr << "phase_config_parser: skipping malformed line: " << e.what() << '\n';
+            std::cerr << "phase_config_parser: skipping malformed line [" << line << "]: " << e.what() << '\n';
         }
     }
     return configs;

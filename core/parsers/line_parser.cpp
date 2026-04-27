@@ -27,7 +27,7 @@ std::vector<Branch> LineParser::parse(const std::string& filepath) {
 
             branches.push_back(b);
         } catch (const std::exception& e) {
-            std::cerr << "line_parser: skipping malformed line: " << e.what() << '\n';
+            std::cerr << "line_parser: skipping malformed line [" << line << "]: " << e.what() << '\n';
         }
     }
     return branches;
