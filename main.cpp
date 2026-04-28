@@ -15,19 +15,24 @@
 // Math Engine
 #include "core/models/ybus_builder.hpp"
 #include "core/solver/newton_raphson.hpp"
+#include "core/utils/path_utils.hpp"
 
-int main() {
+int main(int argc, char** argv) {
+    // Data directory: use argv[1] if supplied, otherwise fall back to the
+    // path embedded at build time via POWERFLOW_DATA_DIR.
+    const std::string data_dir = (argc >= 2) ? argv[1] : POWERFLOW_DATA_DIR;
+
     std::cout << std::fixed << std::setprecision(5);
     std::cout << "--- IEEE 34-Bus: Newton-Raphson Engine ---\n\n";
 
     try {
         // 1. Read Data
-        auto branches     = LineParser::parse("../feeder34/data/line_data.csv");
-        auto configs      = PhaseConfigParser::parse("../feeder34/data/line_matrices.csv");
-        auto spot_loads   = LoadParser::parse("../feeder34/data/spot_load_data.csv");
-        auto dist_loads   = DistributedLoadParser::parse("../feeder34/data/distributed_load_data.csv");
-        auto capacitors   = CapacitorParser::parse("../feeder34/data/cap_data.csv");
-        auto transformers = TransformerParser::parse("../feeder34/data/transformer_data.csv");
+        auto branches     = LineParser::parse(data_path(data_dir, "line_data.csv"));
+        auto configs      = PhaseConfigParser::parse(data_path(data_dir, "line_matrices.csv"));
+        auto spot_loads   = LoadParser::parse(data_path(data_dir, "spot_load_data.csv"));
+        auto dist_loads   = DistributedLoadParser::parse(data_path(data_dir, "distributed_load_data.csv"));
+        auto capacitors   = CapacitorParser::parse(data_path(data_dir, "cap_data.csv"));
+        auto transformers = TransformerParser::parse(data_path(data_dir, "transformer_data.csv"));
 
         // 2. Build Dictionary
         std::unordered_map<std::string, int> node_to_index;

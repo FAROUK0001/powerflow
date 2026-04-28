@@ -22,10 +22,17 @@ cmake --build build --parallel
 
 ## Run
 
-Run the main solver executable:
+Run the main solver executable from any directory (the data path is embedded at
+build time):
 
 ```bash
 ./build/PowerFlowSolver
+```
+
+You can also pass a custom data directory as the first argument:
+
+```bash
+./build/PowerFlowSolver /path/to/feeder34/data
 ```
 
 Run the unit test executable directly:
@@ -110,13 +117,20 @@ If IPO/LTO is unsupported by your compiler/toolchain, CMake prints a warning and
 ### Run benchmark
 
 ```bash
-./build-perf/PowerFlowPerfBench 1 5 feeder34/data
+./build-perf/PowerFlowPerfBench
+```
+
+The data directory is embedded at build time. You can override it with a third
+argument:
+
+```bash
+./build-perf/PowerFlowPerfBench 1 5 /path/to/feeder34/data
 ```
 
 Arguments:
 - arg1: warm-up run count (default `1`)
 - arg2: measured run count (default `3`)
-- arg3: dataset root path (default `../feeder34/data`)
+- arg3: dataset root path (default: path embedded at build time)
 
 Benchmark output reports per-run and average timings for:
 - `ybus_ms` (Y-bus assembly + CSR build)
