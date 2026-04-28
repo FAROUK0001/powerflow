@@ -6,26 +6,26 @@
 #include <iomanip>
 
 // Include your parsers and models
-#include "../core/parsers/line_parser.hpp"
-#include "../core/parsers/phase_config_parser.hpp"
-#include "../core/parsers/capacitor_parser.hpp"
-#include "../core/parsers/transformer_parser.hpp"
-#include "../core/models/ybus_builder.hpp"
+#include "core/parsers/line_parser.hpp"
+#include "core/parsers/phase_config_parser.hpp"
+#include "core/parsers/capacitor_parser.hpp"
+#include "core/parsers/transformer_parser.hpp"
+#include "core/models/ybus_builder.hpp"
+#include "core/utils/path_utils.hpp"
 
-int main() {
+int main(int argc, char** argv) {
+    // Data directory: use argv[1] if supplied, otherwise fall back to the
+    // path embedded at build time via POWERFLOW_DATA_DIR.
+    const std::string data_dir = (argc >= 2) ? argv[1] : POWERFLOW_DATA_DIR;
+
     std::cout << "--- BUILDING Y-BUS FOR FULL CONSOLE PRINT ---\n";
 
     try {
         // 1. Read the exact same CSVs as main
-        std::string line_file = "../feeder34/data/line_data.csv";
-        std::string config_file = "../feeder34/data/line_matrices.csv";
-        std::string cap_file = "../feeder34/data/cap_data.csv";
-        std::string tx_file = "../feeder34/data/transformer_data.csv";
-
-        auto branches = LineParser::parse(line_file);
-        auto configs = PhaseConfigParser::parse(config_file);
-        auto capacitors = CapacitorParser::parse(cap_file);
-        auto transformers = TransformerParser::parse(tx_file);
+        auto branches = LineParser::parse(data_path(data_dir, "line_data.csv"));
+        auto configs = PhaseConfigParser::parse(data_path(data_dir, "line_matrices.csv"));
+        auto capacitors = CapacitorParser::parse(data_path(data_dir, "cap_data.csv"));
+        auto transformers = TransformerParser::parse(data_path(data_dir, "transformer_data.csv"));
 
         // 2. Build the Node Dictionary AND a Reverse Dictionary!
         std::unordered_map<std::string, int> node_to_index;

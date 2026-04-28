@@ -17,18 +17,9 @@
 #include "core/parsers/phase_config_parser.hpp"
 #include "core/parsers/transformer_parser.hpp"
 #include "core/solver/newton_raphson.hpp"
+#include "core/utils/path_utils.hpp"
 
 namespace {
-std::string join_data_path(const std::string& root, const std::string& file_name) {
-    if (root.empty()) {
-        return file_name;
-    }
-    if (root.back() == '/') {
-        return root + file_name;
-    }
-    return root + "/" + file_name;
-}
-
 using Clock = std::chrono::steady_clock;
 
 double milliseconds_between(const Clock::time_point start, const Clock::time_point end) {
@@ -47,7 +38,7 @@ int main(int argc, char** argv) {
     try {
         int warmup_runs = 1;
         int measured_runs = 3;
-        std::string data_root = "../feeder34/data";
+        std::string data_root = POWERFLOW_DATA_DIR;
 
         if (argc >= 2) {
             warmup_runs = std::max(0, std::atoi(argv[1]));
@@ -59,12 +50,12 @@ int main(int argc, char** argv) {
             data_root = argv[3];
         }
 
-        const auto branches = LineParser::parse(join_data_path(data_root, "line_data.csv"));
-        const auto configs = PhaseConfigParser::parse(join_data_path(data_root, "line_matrices.csv"));
-        const auto spot_loads = LoadParser::parse(join_data_path(data_root, "spot_load_data.csv"));
-        const auto dist_loads = DistributedLoadParser::parse(join_data_path(data_root, "distributed_load_data.csv"));
-        const auto capacitors = CapacitorParser::parse(join_data_path(data_root, "cap_data.csv"));
-        const auto transformers = TransformerParser::parse(join_data_path(data_root, "transformer_data.csv"));
+        const auto branches = LineParser::parse(data_path(data_root, "line_data.csv"));
+        const auto configs = PhaseConfigParser::parse(data_path(data_root, "line_matrices.csv"));
+        const auto spot_loads = LoadParser::parse(data_path(data_root, "spot_load_data.csv"));
+        const auto dist_loads = DistributedLoadParser::parse(data_path(data_root, "distributed_load_data.csv"));
+        const auto capacitors = CapacitorParser::parse(data_path(data_root, "cap_data.csv"));
+        const auto transformers = TransformerParser::parse(data_path(data_root, "transformer_data.csv"));
 
         std::unordered_map<std::string, int> node_to_index;
         node_to_index.reserve(branches.size() * 2);

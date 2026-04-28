@@ -179,6 +179,8 @@ add_executable(
         ${SOLVER}
 )
 powerflow_apply_common_settings(PowerFlowSolver)
+target_compile_definitions(PowerFlowSolver PRIVATE
+        POWERFLOW_DATA_DIR="${CMAKE_SOURCE_DIR}/feeder34/data")
 
 # --------------------------------------------------
 # Benchmarks
@@ -199,6 +201,8 @@ if(POWERFLOW_BUILD_BENCHMARKS)
             core/solver/jacobian_builder.cpp
     )
     powerflow_apply_common_settings(PowerFlowPerfBench)
+    target_compile_definitions(PowerFlowPerfBench PRIVATE
+            POWERFLOW_DATA_DIR="${CMAKE_SOURCE_DIR}/feeder34/data")
 endif()
 
 # --------------------------------------------------
@@ -237,4 +241,6 @@ if(POWERFLOW_BUILD_TESTS)
             core/parsers/transformer_parser.cpp
     )
     powerflow_apply_common_settings(YBusDumper)
+    target_compile_definitions(YBusDumper PRIVATE
+            POWERFLOW_DATA_DIR="${CMAKE_SOURCE_DIR}/feeder34/data")
 endif()
