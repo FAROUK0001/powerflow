@@ -1,22 +1,24 @@
 #include "core/parsers/distributed_load_parser.hpp"
+#include "core/parsers/parser_utils.hpp"
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <stdexcept>
 
 std::vector<DistributedLoad> DistributedLoadParser::parse(const std::string& filename) {
     std::vector<DistributedLoad> loads;
     std::ifstream file(filename);
-    std::string line, word;
 
     if (!file.is_open()) {
         throw std::runtime_error("Could not open Distributed Load file: " + filename);
     }
 
-    // 1. THROWAWAY READ (Skips the Header!)
-    std::getline(file, line);
+    std::string line, word;
+    std::getline(file, line); // skip header
+    int line_num = 1;
 
-    // 2. MAIN LOOP
     while (std::getline(file, line)) {
+        ++line_num;
         if (line.empty() || line.find_first_not_of("\r\n\t ") == std::string::npos) {
             continue;
         }
@@ -24,24 +26,29 @@ std::vector<DistributedLoad> DistributedLoadParser::parse(const std::string& fil
         std::stringstream ss(line);
         DistributedLoad dl;
 
-        // Columns 1, 2, & 3: Strings
-        std::getline(ss, dl.node_a, ',');
-        std::getline(ss, dl.node_b, ',');
-        std::getline(ss, dl.model, ',');
+        try {
+            std::getline(ss, dl.node_a, ','); parser_utils::trim_token(dl.node_a);
+            std::getline(ss, dl.node_b, ','); parser_utils::trim_token(dl.node_b);
+            std::getline(ss, dl.model, ',');  parser_utils::trim_token(dl.model);
 
-        // Columns 4 & 5: Phase 1
-        std::getline(ss, word, ','); dl.kw[0] = std::stod(word);
-        std::getline(ss, word, ','); dl.kvar[0] = std::stod(word);
+            if (dl.node_a.empty() || dl.node_b.empty())
+                throw std::runtime_error("missing node name");
 
-        // Columns 6 & 7: Phase 2
-        std::getline(ss, word, ','); dl.kw[1] = std::stod(word);
-        std::getline(ss, word, ','); dl.kvar[1] = std::stod(word);
+            for (int phase = 0; phase < 3; phase++) {
+                std::getline(ss, word, ','); parser_utils::trim_token(word);
+                if (word.empty()) throw std::runtime_error("missing kW for phase " + std::to_string(phase));
+                dl.kw[phase] = std::stod(word);
 
-        // Columns 8 & 9: Phase 3
-        std::getline(ss, word, ','); dl.kw[2] = std::stod(word);
-        std::getline(ss, word, ','); dl.kvar[2] = std::stod(word);
+                std::getline(ss, word, ','); parser_utils::trim_token(word);
+                if (word.empty()) throw std::runtime_error("missing kVAr for phase " + std::to_string(phase));
+                dl.kvar[phase] = std::stod(word);
+            }
 
-        loads.push_back(dl); // Add it to our list!
+            loads.push_back(dl);
+        } catch (const std::exception& e) {
+            std::cerr << "distributed_load_parser: skipping malformed line " << line_num
+                      << " [" << line << "]: " << e.what() << '\n';
+        }
     }
 
     return loads;

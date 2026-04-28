@@ -1,22 +1,24 @@
 #include "core/parsers/capacitor_parser.hpp"
+#include "core/parsers/parser_utils.hpp"
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include <stdexcept>
 
 std::unordered_map<std::string, Capacitor> CapacitorParser::parse(const std::string& filename) {
     std::unordered_map<std::string, Capacitor> capacitors;
     std::ifstream file(filename);
-    std::string line, word;
 
     if (!file.is_open()) {
         throw std::runtime_error("Could not open Capacitor file: " + filename);
     }
 
-    // 1. THROWAWAY READ (Skips the Header: Node,PhA_kVAr,PhB_kVAr,PhC_kVAr)
-    std::getline(file, line);
+    std::string line, word;
+    std::getline(file, line); // skip header
+    int line_num = 1;
 
-    // 2. MAIN LOOP
     while (std::getline(file, line)) {
+        ++line_num;
         if (line.empty() || line.find_first_not_of("\r\n\t ") == std::string::npos) {
             continue;
         }
@@ -24,16 +26,21 @@ std::unordered_map<std::string, Capacitor> CapacitorParser::parse(const std::str
         std::stringstream ss(line);
         Capacitor cap;
 
-        // Column 1: String
-        std::getline(ss, cap.node, ',');
+        try {
+            std::getline(ss, cap.node, ','); parser_utils::trim_token(cap.node);
+            if (cap.node.empty()) throw std::runtime_error("missing node name");
 
-        // Columns 2, 3, 4: Doubles (kVAr for Phases A, B, C)
-        std::getline(ss, word, ','); cap.kvar[0] = std::stod(word);
-        std::getline(ss, word, ','); cap.kvar[1] = std::stod(word);
-        std::getline(ss, word, ','); cap.kvar[2] = std::stod(word);
+            for (int phase = 0; phase < 3; phase++) {
+                std::getline(ss, word, ','); parser_utils::trim_token(word);
+                if (word.empty()) throw std::runtime_error("missing kVAr for phase " + std::to_string(phase));
+                cap.kvar[phase] = std::stod(word);
+            }
 
-        // Add it to our dictionary!
-        capacitors[cap.node] = cap;
+            capacitors[cap.node] = cap;
+        } catch (const std::exception& e) {
+            std::cerr << "capacitor_parser: skipping malformed line " << line_num
+                      << " [" << line << "]: " << e.what() << '\n';
+        }
     }
 
     return capacitors;

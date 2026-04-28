@@ -125,6 +125,8 @@ set(PARSERS
 
         core/parsers/capacitor_parser.cpp
         core/parsers/capacitor_parser.hpp
+
+        core/parsers/parser_utils.hpp
 )
 
 # --------------------------------------------------
@@ -147,19 +149,9 @@ set(MODELS
 # --------------------------------------------------
 
 set(LINALG
-        core/linalg/lu.hpp
         core/linalg/matrix_dense.hpp
         core/linalg/matrix_sparse_csr.hpp
         core/linalg/vector.hpp
-)
-
-# --------------------------------------------------
-# Memory
-# --------------------------------------------------
-
-set(MEMORY
-        core/memory/linear_allocator.hpp
-        core/memory/pool_allocator.hpp
 )
 
 # --------------------------------------------------
@@ -175,15 +167,6 @@ set(SOLVER
 )
 
 # --------------------------------------------------
-# Threading
-# --------------------------------------------------
-
-set(THREADING
-        core/threading/task_queue.hpp
-        core/threading/thread_pool.hpp
-)
-
-# --------------------------------------------------
 # Main executable
 # --------------------------------------------------
 
@@ -193,9 +176,7 @@ add_executable(
         ${PARSERS}
         ${MODELS}
         ${LINALG}
-        ${MEMORY}
         ${SOLVER}
-        ${THREADING}
 )
 powerflow_apply_common_settings(PowerFlowSolver)
 

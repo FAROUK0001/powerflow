@@ -56,7 +56,7 @@ public:
 
     // 2. Matrix * Vector Multiplication (Crucial for Power Flow!)
     Vector<T> operator*(const Vector<T>& vec) const {
-        if (num_cols != vec.size()) {
+        if (num_cols != static_cast<int>(vec.size())) {
             throw std::invalid_argument("Vector size must match Matrix columns");
         }
         Vector<T> result(num_rows);

@@ -39,7 +39,8 @@ int main() {
         int num_nodes = node_to_index.size();
 
         // 3. Build CSR Matrix
-        auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index);
+        const double base_kv = 24.9; // IEEE 34-bus nominal line-to-line voltage (kV)
+        auto ybus_map = YBusBuilder::build_ybus_map(branches, configs, capacitors, transformers, node_to_index, base_kv);
         MatrixSparseCSR<ComplexMatrix3x3> final_ybus(num_nodes, num_nodes);
         for (const auto& row_pair : ybus_map) {
             for (const auto& col_pair : row_pair.second) {
@@ -65,7 +66,13 @@ int main() {
             std::cout << "   Ph A: " << results.mismatch[test_node][0].real() << " W + j" << results.mismatch[test_node][0].imag() << " VAr\n";
         }
 
-        // 6. TEST: Inspect the Jacobian!
+        // 6. Print iteration / convergence summary
+        std::cout << "\n⚡ --- SOLVER SUMMARY ---\n";
+        std::cout << "Iterations performed: " << results.iterations << "\n";
+        std::cout << "Converged: " << (results.converged ? "Yes" : "No") << "\n";
+        std::cout << "Final mismatch norm: " << results.mismatch_norm << " VA\n";
+
+        // 7. Inspect the Jacobian!
         std::cout << "\n🧮 --- JACOBIAN DIAGNOSTICS ---\n";
         std::cout << "Jacobian Rows: " << results.J.size() << "\n";
         std::cout << "Jacobian Cols: " << results.J[0].size() << "\n";

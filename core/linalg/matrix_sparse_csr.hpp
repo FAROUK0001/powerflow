@@ -30,51 +30,52 @@ public:
         temp_triplets.push_back({row, col, val});
     }
 
-    // 🌟 THE MAGIC CSR BUILDER 🌟
+    // Build (or rebuild) the CSR arrays from the accumulated triplets.
+    // Safe to call multiple times: previous CSR data is cleared first.
     void build_csr() {
-        if (temp_triplets.empty()) return; // Nothing to do!
+        if (temp_triplets.empty()) return;
 
-        // STEP 1: Sort the Triplets left-to-right, top-to-bottom.
+        // Clear any previously built data before rebuilding.
+        values.clear();
+        col_indices.clear();
+        row_ptr.assign(num_rows + 1, 0);
+
+        // STEP 1: Sort the triplets left-to-right, top-to-bottom.
         std::sort(temp_triplets.begin(), temp_triplets.end(),
             [](const Triplet& a, const Triplet& b) {
                 if (a.row == b.row) {
-                    return a.col < b.col; // If same row, sort by column
+                    return a.col < b.col;
                 }
-                return a.row < b.row;     // Otherwise, sort by row
+                return a.row < b.row;
             }
         );
 
-        // STEP 2: Allocate exactly enough memory for our final arrays.
-        // This is a massive optimization to prevent C++ from constantly resizing arrays.
-        int non_zeros = temp_triplets.size();
-        values.reserve(non_zeros);
-        col_indices.reserve(non_zeros);
+        // STEP 2: Reserve exact capacity to avoid repeated reallocation.
+        const int non_zeros = static_cast<int>(temp_triplets.size());
+        values.reserve(static_cast<std::size_t>(non_zeros));
+        col_indices.reserve(static_cast<std::size_t>(non_zeros));
 
-        // STEP 3: Fill 'values' and 'col_indices', and count how many items are in each row.
+        // STEP 3: Fill values/col_indices and count non-zeros per row.
         for (const auto& t : temp_triplets) {
             values.push_back(t.value);
             col_indices.push_back(t.col);
-
-            // This is the trick to building row_ptr!
-            // We temporarily store the COUNT of non-zeros for each row.
-            // (Notice we use row + 1. You'll see why in Step 4).
+            // Temporarily store the count of non-zeros for each row at row+1.
             ++row_ptr[t.row + 1];
         }
 
-        // STEP 4: Convert the counts into actual starting indices (Cumulative Sum)
-        // Example: If Row 0 has 2 items, Row 1 MUST start at index 2.
+        // STEP 4: Convert per-row counts into cumulative start indices.
         for (int i = 0; i < num_rows; i++) {
             row_ptr[i + 1] += row_ptr[i];
         }
 
-        // STEP 5: Delete the temporary triplets to free up RAM!
+        // STEP 5: Release the temporary triplets to free RAM.
         temp_triplets.clear();
         temp_triplets.shrink_to_fit();
     }
 
-    // --- YOUR PERFECTED CSR MATRIX MULTIPLICATION ---
+    // CSR matrix-vector multiplication.
     Vector<T> operator*(const Vector<T>& x) const {
-        if (x.size() != num_cols) {
+        if (static_cast<int>(x.size()) != num_cols) {
             throw std::invalid_argument("Vector size must match Matrix columns!");
         }
 
@@ -82,11 +83,9 @@ public:
 
         for (int i = 0; i < num_rows; i++) {
             T row_sum = T(0);
+            const int row_start = row_ptr[i];
+            const int row_end   = row_ptr[i + 1];
 
-            int row_start = row_ptr[i];
-            int row_end   = row_ptr[i + 1];
-
-            // Your brilliant inner loop!
             for (int j = row_start; j < row_end; j++) {
                 row_sum = row_sum + values[j] * x[col_indices[j]];
             }
@@ -96,7 +95,9 @@ public:
 
         return result;
     }
-    const std::vector<T>& get_values() const { return values; }
+
+    const std::vector<T>& get_values()      const { return values; }
     const std::vector<int>& get_col_indices() const { return col_indices; }
-    const std::vector<int>& get_row_ptr() const { return row_ptr; }
+    const std::vector<int>& get_row_ptr()    const { return row_ptr; }
 };
+
