@@ -102,8 +102,12 @@ YBusBuilder::build_ybus_map(
     // ==============================================================
     // INJECT CAPACITORS (Shunt Admittance)
     // ==============================================================
-    // Convert kVAr to Siemens: B = Q_kvar / (V_kV^2 * 1000)
-    const double z_base_cap = base_kv * base_kv / 1000.0; // kV² / MVAbase (in kΩ units → correct for kVAr)
+    // Convert kVAr to susceptance in Siemens:
+    //   B [S] = Q [kVAr] / (V_LL [kV]^2 * 1000)
+    // Equivalently: B = (Q_kVAr / 1000) / (kV^2 / 1000)
+    //                 = Q_MVAr / kV^2
+    // We factor out the denominator as z_base_cap = kV^2 / 1000 [Ω-equivalent].
+    const double z_base_cap = base_kv * base_kv / 1000.0;
 
     for (const auto& cap_pair : capacitors) {
         const std::string& node_name = cap_pair.first;

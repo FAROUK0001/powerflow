@@ -5,6 +5,12 @@
 #include <iostream>
 #include <stdexcept>
 
+// The slack bus is always node 0 (the substation source bus).
+static constexpr int SLACK_BUS_INDEX = 0;
+
+// Pivot values smaller than this threshold indicate a singular Jacobian row.
+static constexpr double SINGULARITY_TOLERANCE = 1e-12;
+
 // ---------------------------------------------------------------------------
 // Gaussian elimination with partial pivoting.
 // Solves A * x = b and returns x.
@@ -27,7 +33,7 @@ static std::vector<double> gauss_elim(
         std::swap(A[col], A[pivot]);
         std::swap(b[col], b[pivot]);
 
-        if (std::abs(A[col][col]) < 1e-12) {
+        if (std::abs(A[col][col]) < SINGULARITY_TOLERANCE) {
             throw std::runtime_error(
                 "Singular Jacobian at column " + std::to_string(col) +
                 " — check for isolated or all-zero-phase nodes.");
@@ -106,7 +112,7 @@ static void compute_mismatch(
     const std::vector<std::vector<std::complex<double>>>& S_calc,
     int num_nodes)
 {
-    for (int i = 1; i < num_nodes; i++) { // Skip slack bus (node 0)
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) { // Skip slack bus
         for (int p = 0; p < 3; p++) {
             mismatch[i][p] = S_spec[i][p] - S_calc[i][p];
         }
@@ -125,7 +131,7 @@ static std::vector<double> flatten_mismatch(
 {
     const int dim = (num_nodes - 1) * 6;
     std::vector<double> f(static_cast<std::size_t>(dim), 0.0);
-    for (int i = 1; i < num_nodes; i++) {
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) {
         const int row_base = (i - 1) * 6;
         for (int p = 0; p < 3; p++) {
             f[static_cast<std::size_t>(row_base + p * 2)]     = mismatch[i][p].real();
@@ -145,7 +151,7 @@ static void update_voltages(
     const std::vector<double>& delta_x,
     int num_nodes)
 {
-    for (int i = 1; i < num_nodes; i++) { // Slack bus (0) is not updated
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) { // Slack bus is not updated
         const int row_base = (i - 1) * 6;
         for (int p = 0; p < 3; p++) {
             const double d_theta  = delta_x[static_cast<std::size_t>(row_base + p * 2)];
@@ -239,7 +245,7 @@ SolverResult NewtonRaphson::solve(
         compute_mismatch(mismatch, S_spec, S_calc, num_nodes);
 
         // c) Evaluate convergence
-        norm = convergence::mismatch_norm(mismatch, 1);
+        norm = convergence::mismatch_norm(mismatch, SLACK_BUS_INDEX + 1);
         if (convergence::has_converged(norm, tolerance)) {
             break;
         }
@@ -261,7 +267,7 @@ SolverResult NewtonRaphson::solve(
     // ------------------------------------------------------------------
     compute_s_calc(S_calc, V, ybus, num_nodes);
     compute_mismatch(mismatch, S_spec, S_calc, num_nodes);
-    norm = convergence::mismatch_norm(mismatch, 1);
+    norm = convergence::mismatch_norm(mismatch, SLACK_BUS_INDEX + 1);
     RealMatrix J_final = JacobianBuilder::build(ybus, V, S_calc, num_nodes);
 
     const bool converged = convergence::has_converged(norm, tolerance);
