@@ -63,12 +63,77 @@ static std::vector<double> gauss_elim(
 }
 
 // ---------------------------------------------------------------------------
+// Detect which phases are physically active at each node.
+// A phase p is considered present at node i when the diagonal entry
+// Y[i][i](p,p) of the Ybus is non-zero (magnitude > threshold).
+// The slack bus always has all phases active regardless.
+// ---------------------------------------------------------------------------
+static std::vector<std::array<bool, 3>> detect_phases(
+    const MatrixSparseCSR<ComplexMatrix3x3>& ybus,
+    int num_nodes)
+{
+    std::vector<std::array<bool, 3>> phase_exists(
+        static_cast<std::size_t>(num_nodes),
+        std::array<bool, 3>{false, false, false});
+
+    const auto& y_values = ybus.get_values();
+    const auto& y_cols   = ybus.get_col_indices();
+    const auto& y_rows   = ybus.get_row_ptr();
+
+    for (int i = 0; i < num_nodes; i++) {
+        for (int ptr = y_rows[i]; ptr < y_rows[i + 1]; ptr++) {
+            if (y_cols[ptr] != i) continue; // only the self-admittance (diagonal) block
+            const ComplexMatrix3x3& Y_diag = y_values[ptr];
+            for (int p = 0; p < 3; p++) {
+                if (std::abs(Y_diag(p, p)) > 1e-12) {
+                    phase_exists[static_cast<std::size_t>(i)][p] = true;
+                }
+            }
+        }
+    }
+
+    // The slack bus is always treated as fully 3-phase.
+    phase_exists[SLACK_BUS_INDEX] = {true, true, true};
+    return phase_exists;
+}
+
+// ---------------------------------------------------------------------------
+// Build the sparse state index that maps (node, phase) -> base offset.
+// Only non-slack nodes with existing phases are included.
+// Each active (node, phase) pair occupies two consecutive slots:
+//   [base]   = Δθ  (angle update)
+//   [base+1] = Δ|V| (magnitude update)
+// ---------------------------------------------------------------------------
+static StateIndex build_state_index(
+    const std::vector<std::array<bool, 3>>& phase_exists,
+    int num_nodes)
+{
+    StateIndex si;
+    si.idx.assign(
+        static_cast<std::size_t>(num_nodes),
+        std::array<int, 3>{-1, -1, -1});
+    si.dimension = 0;
+
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) {
+        for (int p = 0; p < 3; p++) {
+            if (phase_exists[static_cast<std::size_t>(i)][p]) {
+                si.idx[static_cast<std::size_t>(i)][p] = si.dimension;
+                si.dimension += 2; // theta and magnitude
+            }
+        }
+    }
+    return si;
+}
+
+// ---------------------------------------------------------------------------
 // Recompute S_calc from the current voltage vector.
+// Only contributions from existing phases are accumulated.
 // ---------------------------------------------------------------------------
 static void compute_s_calc(
     std::vector<std::vector<std::complex<double>>>& S_calc,
     const std::vector<std::vector<std::complex<double>>>& V,
     const MatrixSparseCSR<ComplexMatrix3x3>& ybus,
+    const std::vector<std::array<bool, 3>>& phase_exists,
     int num_nodes)
 {
     const auto& y_values = ybus.get_values();
@@ -78,23 +143,26 @@ static void compute_s_calc(
     const std::complex<double> zero(0.0, 0.0);
     for (int i = 0; i < num_nodes; i++) {
         for (int p = 0; p < 3; p++) {
-            S_calc[i][p] = zero;
+            S_calc[static_cast<std::size_t>(i)][p] = zero;
         }
     }
 
     for (int i = 0; i < num_nodes; i++) {
-        const auto& v_i = V[i];
-        auto& s_i = S_calc[i];
+        const auto& v_i = V[static_cast<std::size_t>(i)];
+        auto& s_i = S_calc[static_cast<std::size_t>(i)];
         const int row_start = y_rows[i];
         const int row_end   = y_rows[i + 1];
 
         for (int p_i = 0; p_i < 3; p_i++) {
+            if (!phase_exists[static_cast<std::size_t>(i)][p_i]) continue;
+
             std::complex<double> sum_YV(0.0, 0.0);
             for (int ptr = row_start; ptr < row_end; ptr++) {
                 const int j = y_cols[ptr];
                 const ComplexMatrix3x3& Y_block = y_values[ptr];
-                const auto& v_j = V[j];
+                const auto& v_j = V[static_cast<std::size_t>(j)];
                 for (int p_j = 0; p_j < 3; p_j++) {
+                    if (!phase_exists[static_cast<std::size_t>(j)][p_j]) continue;
                     sum_YV += Y_block(p_i, p_j) * v_j[p_j];
                 }
             }
@@ -104,38 +172,46 @@ static void compute_s_calc(
 }
 
 // ---------------------------------------------------------------------------
-// Compute mismatch for all non-slack nodes (node 0 is the slack bus).
+// Compute mismatch for all non-slack nodes.
+// Missing phases are left at zero.
 // ---------------------------------------------------------------------------
 static void compute_mismatch(
     std::vector<std::vector<std::complex<double>>>& mismatch,
     const std::vector<std::vector<std::complex<double>>>& S_spec,
     const std::vector<std::vector<std::complex<double>>>& S_calc,
+    const std::vector<std::array<bool, 3>>& phase_exists,
     int num_nodes)
 {
-    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) { // Skip slack bus
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) {
         for (int p = 0; p < 3; p++) {
-            mismatch[i][p] = S_spec[i][p] - S_calc[i][p];
+            if (!phase_exists[static_cast<std::size_t>(i)][p]) {
+                mismatch[static_cast<std::size_t>(i)][p] = std::complex<double>(0.0, 0.0);
+                continue;
+            }
+            mismatch[static_cast<std::size_t>(i)][p] =
+                S_spec[static_cast<std::size_t>(i)][p] - S_calc[static_cast<std::size_t>(i)][p];
         }
     }
 }
 
 // ---------------------------------------------------------------------------
 // Flatten the complex mismatch into a real right-hand-side vector f.
-// Layout mirrors the Jacobian: for each non-slack node i and phase p,
-//   f[(i-1)*6 + p*2    ] = ΔP  (real part of mismatch)
-//   f[(i-1)*6 + p*2 + 1] = ΔQ  (imag part of mismatch)
+// Layout follows StateIndex: for each active (node, phase),
+//   f[base]   = ΔP  (real part of mismatch)
+//   f[base+1] = ΔQ  (imag part of mismatch)
 // ---------------------------------------------------------------------------
 static std::vector<double> flatten_mismatch(
     const std::vector<std::vector<std::complex<double>>>& mismatch,
+    const StateIndex& state_index,
     int num_nodes)
 {
-    const int dim = (num_nodes - 1) * 6;
-    std::vector<double> f(static_cast<std::size_t>(dim), 0.0);
+    std::vector<double> f(static_cast<std::size_t>(state_index.dimension), 0.0);
     for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) {
-        const int row_base = (i - 1) * 6;
         for (int p = 0; p < 3; p++) {
-            f[static_cast<std::size_t>(row_base + p * 2)]     = mismatch[i][p].real();
-            f[static_cast<std::size_t>(row_base + p * 2 + 1)] = mismatch[i][p].imag();
+            const int base = state_index.idx[static_cast<std::size_t>(i)][p];
+            if (base == -1) continue;
+            f[static_cast<std::size_t>(base)]     = mismatch[static_cast<std::size_t>(i)][p].real();
+            f[static_cast<std::size_t>(base + 1)] = mismatch[static_cast<std::size_t>(i)][p].imag();
         }
     }
     return f;
@@ -143,24 +219,24 @@ static std::vector<double> flatten_mismatch(
 
 // ---------------------------------------------------------------------------
 // Apply the Newton step Δx to the voltage vector.
-// State layout: Δx[(i-1)*6 + p*2] = Δθ, Δx[(i-1)*6 + p*2 + 1] = Δ|V|
+// Uses StateIndex to map (node, phase) -> (Δθ, Δ|V|).
 // Voltage update: V_new = (|V| + Δ|V|) * e^{j(θ + Δθ)}
 // ---------------------------------------------------------------------------
 static void update_voltages(
     std::vector<std::vector<std::complex<double>>>& V,
     const std::vector<double>& delta_x,
+    const StateIndex& state_index,
     int num_nodes)
 {
-    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) { // Slack bus is not updated
-        const int row_base = (i - 1) * 6;
+    for (int i = SLACK_BUS_INDEX + 1; i < num_nodes; i++) {
         for (int p = 0; p < 3; p++) {
-            const double d_theta  = delta_x[static_cast<std::size_t>(row_base + p * 2)];
-            const double d_vmag   = delta_x[static_cast<std::size_t>(row_base + p * 2 + 1)];
-            const double old_mag  = std::abs(V[i][p]);
-            const double old_ang  = std::arg(V[i][p]);
-            const double new_mag  = old_mag + d_vmag;
-            const double new_ang  = old_ang + d_theta;
-            V[i][p] = std::polar(new_mag, new_ang);
+            const int base = state_index.idx[static_cast<std::size_t>(i)][p];
+            if (base == -1) continue;
+            const double d_theta = delta_x[static_cast<std::size_t>(base)];
+            const double d_vmag  = delta_x[static_cast<std::size_t>(base + 1)];
+            const double old_mag = std::abs(V[static_cast<std::size_t>(i)][p]);
+            const double old_ang = std::arg(V[static_cast<std::size_t>(i)][p]);
+            V[static_cast<std::size_t>(i)][p] = std::polar(old_mag + d_vmag, old_ang + d_theta);
         }
     }
 }
@@ -180,27 +256,37 @@ SolverResult NewtonRaphson::solve(
     const std::complex<double> zero(0.0, 0.0);
 
     // ------------------------------------------------------------------
-    // 1. Flat-start voltages (balanced 3-phase at rated magnitude)
+    // 1. Detect active phases and build sparse state index
+    // ------------------------------------------------------------------
+    const auto phase_exists = detect_phases(ybus, num_nodes);
+    const StateIndex state_index = build_state_index(phase_exists, num_nodes);
+
+    std::cout << "   -> Sparse state dimension: " << state_index.dimension
+              << " variables (vs fixed " << (num_nodes - 1) * 6 << ")\n";
+
+    // ------------------------------------------------------------------
+    // 2. Flat-start voltages
+    //    Existing phases: balanced 3-phase at rated magnitude (24900/√3 V L-N).
+    //    Absent phases:   zero (they are not part of the state vector).
     // ------------------------------------------------------------------
     const ComplexVector3 zero_vector(3, zero);
     std::vector<ComplexVector3> V(static_cast<std::size_t>(num_nodes), zero_vector);
 
-    // Phase angles: A = 0°, B = -120°, C = +120°
-    // The magnitude will be updated by the NR iterations; start at 1 pu
-    // using the same value as the original code (24900 V L-N).
     const double v_mag = 24900.0 / std::sqrt(3.0);
     const std::complex<double> vA = std::polar(v_mag,  0.0);
     const std::complex<double> vB = std::polar(v_mag, -120.0 * (M_PI / 180.0));
     const std::complex<double> vC = std::polar(v_mag,  120.0 * (M_PI / 180.0));
+    const std::complex<double> v_init[3] = {vA, vB, vC};
 
     for (int i = 0; i < num_nodes; i++) {
-        V[static_cast<std::size_t>(i)][0] = vA;
-        V[static_cast<std::size_t>(i)][1] = vB;
-        V[static_cast<std::size_t>(i)][2] = vC;
+        for (int p = 0; p < 3; p++) {
+            V[static_cast<std::size_t>(i)][p] =
+                phase_exists[static_cast<std::size_t>(i)][p] ? v_init[p] : zero;
+        }
     }
 
     // ------------------------------------------------------------------
-    // 2. Specified power injections S_spec (computed once)
+    // 3. Specified power injections S_spec (computed once)
     // ------------------------------------------------------------------
     std::vector<ComplexVector3> S_spec(static_cast<std::size_t>(num_nodes), zero_vector);
 
@@ -229,7 +315,7 @@ SolverResult NewtonRaphson::solve(
     }
 
     // ------------------------------------------------------------------
-    // 3. Newton-Raphson iteration loop
+    // 4. Newton-Raphson iteration loop
     // ------------------------------------------------------------------
     std::vector<ComplexVector3> S_calc(static_cast<std::size_t>(num_nodes), zero_vector);
     std::vector<ComplexVector3> mismatch(static_cast<std::size_t>(num_nodes), zero_vector);
@@ -239,10 +325,10 @@ SolverResult NewtonRaphson::solve(
 
     for (; iter < max_iter; ++iter) {
         // a) Compute S_calc from current voltages
-        compute_s_calc(S_calc, V, ybus, num_nodes);
+        compute_s_calc(S_calc, V, ybus, phase_exists, num_nodes);
 
         // b) Compute power mismatch
-        compute_mismatch(mismatch, S_spec, S_calc, num_nodes);
+        compute_mismatch(mismatch, S_spec, S_calc, phase_exists, num_nodes);
 
         // c) Evaluate convergence
         norm = convergence::mismatch_norm(mismatch, SLACK_BUS_INDEX + 1);
@@ -251,24 +337,24 @@ SolverResult NewtonRaphson::solve(
         }
 
         // d) Build Jacobian
-        RealMatrix J = JacobianBuilder::build(ybus, V, S_calc, num_nodes);
+        RealMatrix J = JacobianBuilder::build(ybus, V, S_calc, state_index);
 
         // e) Flatten mismatch to RHS vector and solve J * Δx = f
-        std::vector<double> f = flatten_mismatch(mismatch, num_nodes);
+        std::vector<double> f = flatten_mismatch(mismatch, state_index, num_nodes);
         std::vector<double> delta_x = gauss_elim(std::move(J), f);
 
         // f) Update voltages
-        update_voltages(V, delta_x, num_nodes);
+        update_voltages(V, delta_x, state_index, num_nodes);
     }
 
     // ------------------------------------------------------------------
-    // 4. Final state: recompute S_calc / mismatch and build Jacobian
+    // 5. Final state: recompute S_calc / mismatch and build Jacobian
     //    so that the returned values always reflect the final voltages.
     // ------------------------------------------------------------------
-    compute_s_calc(S_calc, V, ybus, num_nodes);
-    compute_mismatch(mismatch, S_spec, S_calc, num_nodes);
+    compute_s_calc(S_calc, V, ybus, phase_exists, num_nodes);
+    compute_mismatch(mismatch, S_spec, S_calc, phase_exists, num_nodes);
     norm = convergence::mismatch_norm(mismatch, SLACK_BUS_INDEX + 1);
-    RealMatrix J_final = JacobianBuilder::build(ybus, V, S_calc, num_nodes);
+    RealMatrix J_final = JacobianBuilder::build(ybus, V, S_calc, state_index);
 
     const bool converged = convergence::has_converged(norm, tolerance);
 
